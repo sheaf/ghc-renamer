@@ -1,0 +1,225 @@
+::selection {
+  color: #fff;
+  background: #8bb4e1;
+  text-shadow: none;
+}
+
+.reveal {
+  background-color: rgb(203, 225, 247);
+  font-family: "Open Sans", sans-serif;
+  font-size: 18pt;
+}
+
+.reveal .slides .fragment.fade-out.visible {
+  display: none;
+  height:0px;
+  line-height: 0px;
+  font-size: 0px;
+}
+
+.title {
+  font-size: 28pt;
+  margin-bottom: 0px;
+}
+
+.subtitle {
+  font-size: 24pt;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.author {
+  font-size: 22pt;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.date {
+  font-size: 20pt;
+  text-align: center;
+}
+
+.slides {
+  background-color: rgb(203, 225, 247);
+  background-image: url("welltyped.svg");
+  background-repeat: no-repeat;
+  background-position: 100% 97%;
+  background-size: 150px;
+}
+
+.slides > section {
+  font-size: 18pt;
+  line-height: 1.8;
+  text-align: left;
+}
+
+.slides > section > section {
+  line-height: 1.8;
+  text-align: left;
+}
+
+.indicator {
+  float: right;
+  color: #1c72c4;
+  font-size: 14pt;
+}
+
+h1 {
+  font-size: 28pt;
+  text-align: center;
+  font-weight: bold;
+}
+
+h2 {
+  font-size: 26pt;
+  font-weight: bold;
+  text-align: center;
+  padding-bottom:8px;
+}
+
+p {
+  padding-left: none;
+  text-indent: 0pt;
+}
+
+strong {
+  font-weight: bold;
+}
+
+.sourceCode {
+  line-height: 1.2;
+  text-align: left;
+  padding: 0px;
+  font-family: "Fira Code", monospace;
+  font-size: 16pt;
+}
+
+
+pre.sourceCode {
+  background-color:rgb(222, 238, 252);
+  padding-left: 12px;
+  padding-right: 8px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  border-radius: 8px;
+}
+
+code {
+  background-color:rgb(222, 238, 252);
+  border-radius: 8px;
+  font-family: "Fira Code", monospace;
+  font-size: inherit;
+  padding-left: 8px;
+  padding-right: 8px;
+  padding-top: 3px;
+  padding-bottom: 3px;
+}
+
+.infobox {
+  color: rgb(99, 81, 94,0.95);
+  background-color:rgb(247, 164, 212,0.6);
+  font-size:14pt;
+  border-radius: 6px;
+  border: 1px solid rgb(163, 41, 147,0.8);
+  padding-left: 10px;
+  padding-right: 6px;
+  padding-top: 3px;
+  padding-bottom: 3px;
+  margin-left: 40px;
+  margin-right: 180px;
+}
+
+.types {
+  float: left;
+  width: 340px;
+}
+
+.typing {
+  background-color:rgb(222, 238, 252);
+  border-radius: 8px;
+}
+
+.sourceCode .co {
+  color: #c05db3;
+  font-style: normal;
+}
+
+.sourceCode .kw {
+  color: #ad1616;
+  font-weight: normal;
+}
+
+.sourceCode .ot {
+  color: #000000;
+  font-weight: normal;
+}
+
+.sourceCode .dt {
+  color: #1c72c4;
+  font-style: normal;
+}
+
+.sourceCode .pp {
+  color: #bc7a00;
+  font-style: normal;
+}
+
+.sourceCode .op {
+  color: #4c9e16;
+  font-style: normal;
+}
+
+
+li {
+  margin-left: 50px;
+}
+
+table {
+  border-spacing: 0;
+}
+
+th {
+  border-bottom: 2px solid black;
+  border-left: 2px solid black;
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+th:first-child {
+  border-left: none;
+}
+
+td {
+  border-left: 2px solid black;
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+td:first-child {
+  border-left: none;
+}
+
+
+.reveal .slide-number, .reveal .slide-number :link {
+  font-family: "Fira Code", monospace;
+  font-size: 16pt;
+  color: #000000;
+  background-color: #8bb4e1;
+  margin: 0px;
+}
+
+.reveal .slide-number {
+  border: 3px solid #32659ca2;
+  border-radius: 10px;
+  right: 25px;
+  bottom: 25px;
+  padding: 10px;
+}
+
+.reveal .slide-number :link {
+  text-decoration: none;
+}
+
+.reveal .slide-number-delimiter {
+  margin: -6px;
+}
