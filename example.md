@@ -42,8 +42,10 @@ This has been reported many times: [#15681](https://gitlab.haskell.org/ghc/ghc/-
 
 Fundamental problem:
 
-  - the renamer decides how to elaborate a
-  - the pattern-match checker runs after type-checking (it needs types)
+  - the renamer decides how to elaborate `do`-notation,
+  - the pattern-match checker runs after type-checking (it needs types).
+
+<br/>
 
 :::{.element: class="fragment"}
 However, in this situation, we don't need types to be able to see that the
@@ -209,12 +211,13 @@ wouldn't handle the `tyConSingleDataCon` situation.)
 <br/>
 
 :::{.element: class="fragment"}
-... we still need to take into account COMPLETE pragmas. <p class="indicator">⭲</p>
+This leaves the task of passing the collection of `COMPLETE` pragmas to
+`isIrrefutableHsPat`. <p class="indicator">⭲</p>
 :::
 
 ## Information flow
 
-We now have to audit the calls to `isIrrefutableHsPat`; the HLS call hierarchy
+Let's audit the calls to `isIrrefutableHsPat`; the HLS call hierarchy
 functionality is very useful for that.
 
 <ol type="1" class="fragment">
@@ -253,7 +256,7 @@ renamer, and before we have actually typechecked `PatSyn`s in the typechecker.
 
 ## COMPLETE pragmas
 
-First, we should see how how `COMPLETE` pragmas are represented in the compiler.
+How are `COMPLETE` pragmas are represented in the compiler?
 
 :::{.element: class="fragment"}
 ```haskell
@@ -311,6 +314,7 @@ information to the `TcGblEnv` environment before we call `isIrrefutableHsPat`.
 
 ## Call hierarchy of `monadFailOp`
 
+We want to find what to change to pass on the correct `COMPLETE` information.  
 Let's use HLS to find the call hierarchy of `GHC.Rename.Expr.monadFailOp`.
 
 :::{.element: class="fragment"}
@@ -323,8 +327,8 @@ Let's use HLS to find the call hierarchy of `GHC.Rename.Expr.monadFailOp`.
   - `rnGHRSs`
   - `rnBind`
   - `rnLBind`
-  - `rnValBindsRHS`
-  - `rnSrcDecls` <p class="indicator">⭲</p>
+  - `rnValBindsRHS` <p class="indicator">⭲</p>
+  - `rnSrcDecls`
 :::
 
 ## Focus on `rnValBindsRHS`
@@ -404,7 +408,8 @@ get_complete_matches_rn
        }
 ```
 
-<p class="indicator">⭲</p>
+`completeMatchesRn` throws away the `COMPLETE` pragmas with a result `TyCon`,
+as in the renamer we can't know whether they apply or not. <p class="indicator">⭲</p>
 
 ## Updating `isIrrefutableHsPat`
 
@@ -435,17 +440,19 @@ is_irrefutable_hs_pat complete_matches strict_enabled = \case
 
 ## Outcome
 
-Now that everything is in place, we try some tests programs, but we run into:
+Now that everything is in place, we try some tests programs.
 
+:::{.element: class="fragment"}
 ```markdown
 panic! (the 'impossible' happened)
   GHC version 9.7.20230607:
         missing fail op
   Pattern match: U is failable, and fail_expr was left unset
 ```
+:::
 
 :::{.element: class="fragment"}
-Work backwards: search for "missing fail op".
+Debug this by working backwards: search for "missing fail op".
 
 <p class="indicator">⭲</p>
 :::
@@ -500,8 +507,8 @@ bogus = do
 
 ## Handling monadic failure
 
-We should accept that previous program, but crash at runtime,
-using a failure operator that raises a pattern match failure exception:
+We should accept the previous program, but crash at runtime,
+using a non-monadic failure operator which raises a pattern match error:
 
 ```haskell
 dsHandleMonadicFailure ctx pat match m_fail_op body_ty =
@@ -511,19 +518,47 @@ dsHandleMonadicFailure ctx pat match m_fail_op body_ty =
       case m_fail_op of
         Nothing ->
           do error_expr <- mkErrorAppDs pAT_ERROR_ID body_ty (ppr pat)
--- NB: a custom error would be better than re-using pAT_ERROR_ID
              body error_expr
         Just fail_op -> -- ...
 ```
 
 Note that we need to know the overall return type of the `do` expression to
-know the return type of the error; so we modify `dsHandleMonadicFailure`
-to get that extra type (straightforward).
+know the return type of the error; so we modify `dsHandleMonadicFailure`.
+<p class="indicator">⭲</p>
+
+## Confirmation
+
+Let's make sure we properly handle the problematic program:
+
+```haskell
+pattern Bogus :: Int
+pattern Bogus = 3
+{-# COMPLETE Bogus #-}
+
+bogus :: Identity Bool
+bogus = do
+  Bogus <- return 4
+  return False
+```
+
+:::{.element: class="fragment"}
+The program compiles successfully, and running it gives:
+```markdown
+*** Exception: user error (Pattern match failure in 'do' block)
+```
+:::
+
+:::{.element: class="fragment"}
+We can do better by having a custom error message for this situation, as
+opposed to re-using `pAT_ERROR_ID`. <p class="indicator">⭲</p>
+:::
 
 ## Finishing up
 
 - Adding tests.
 - Writing Notes.
+
+<p class="indicator">⭲</p>
 
 ## Other tickets
 
@@ -539,4 +574,3 @@ to get that extra type (straightforward).
 - Propagate more information about patterns in the renamer to help
   record update disambiguation [#23032](https://gitlab.haskell.org/ghc/ghc/-/issues/23032)
   [#22746](https://gitlab.haskell.org/ghc/ghc/-/issues/22746).
-

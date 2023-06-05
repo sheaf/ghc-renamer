@@ -146,10 +146,11 @@ href="https://gitlab.haskell.org/ghc/ghc/-/issues/23458">#23458</a>
 href="https://gitlab.haskell.org/ghc/ghc/-/issues/16618">#16618</a>).</p>
 <p>Fundamental problem:</p>
 <ul>
-<li>the renamer decides how to elaborate a</li>
+<li>the renamer decides how to elaborate <code>do</code>-notation,</li>
 <li>the pattern-match checker runs after type-checking (it needs
-types)</li>
+types).</li>
 </ul>
+<p><br/></p>
 <div class="element: fragment">
 <p>However, in this situation, we don’t need types to be able to see
 that the pattern match succeeds (this is different from situation which
@@ -310,7 +311,8 @@ class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb11-1"><a
 <code>tyConSingleDataCon</code> situation.)</p>
 <p><br/></p>
 <div class="element: fragment">
-… we still need to take into account COMPLETE pragmas.
+This leaves the task of passing the collection of <code>COMPLETE</code>
+pragmas to <code>isIrrefutableHsPat</code>.
 <p class="indicator">
 ⭲
 </p>
@@ -318,8 +320,8 @@ class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb11-1"><a
 </section>
 <section id="information-flow" class="slide level2">
 <h2>Information flow</h2>
-<p>We now have to audit the calls to <code>isIrrefutableHsPat</code>;
-the HLS call hierarchy functionality is very useful for that.</p>
+<p>Let’s audit the calls to <code>isIrrefutableHsPat</code>; the HLS
+call hierarchy functionality is very useful for that.</p>
 <ol type="1" class="fragment">
 <li>
 In the renamer:
@@ -358,8 +360,8 @@ information in the renamer, and before we have actually typechecked
 </section>
 <section id="complete-pragmas" class="slide level2">
 <h2>COMPLETE pragmas</h2>
-<p>First, we should see how how <code>COMPLETE</code> pragmas are
-represented in the compiler.</p>
+<p>How are <code>COMPLETE</code> pragmas are represented in the
+compiler?</p>
 <div class="element: fragment">
 <div class="sourceCode" id="cb12"><pre
 class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- In Language.Haskell.Syntax.Binds</span></span>
@@ -413,7 +415,9 @@ call <code>isIrrefutableHsPat</code>.</p>
 </section>
 <section id="call-hierarchy-of-monadfailop" class="slide level2">
 <h2>Call hierarchy of <code>monadFailOp</code></h2>
-<p>Let’s use HLS to find the call hierarchy of
+<p>We want to find what to change to pass on the correct
+<code>COMPLETE</code> information.<br />
+Let’s use HLS to find the call hierarchy of
 <code>GHC.Rename.Expr.monadFailOp</code>.</p>
 <div class="element: fragment">
 <ul>
@@ -426,11 +430,11 @@ call <code>isIrrefutableHsPat</code>.</p>
 <li><code>rnGHRSs</code></li>
 <li><code>rnBind</code></li>
 <li><code>rnLBind</code></li>
-<li><code>rnValBindsRHS</code></li>
-<li><code>rnSrcDecls</code>
+<li><code>rnValBindsRHS</code>
 <p class="indicator">
 ⭲
 </p></li>
+<li><code>rnSrcDecls</code></li>
 </ul>
 </div>
 </section>
@@ -508,6 +512,9 @@ class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb18-1"><a
 <span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>             <span class="op">++</span> eps_complete_matches eps )   <span class="co">-- from imports</span></span>
 <span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>          <span class="op">++</span> tcg_complete_matches_rn tcg_env <span class="co">-- from the current module</span></span>
 <span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>       }</span></code></pre></div>
+<code>completeMatchesRn</code> throws away the <code>COMPLETE</code>
+pragmas with a result <code>TyCon</code>, as in the renamer we can’t
+know whether they apply or not.
 <p class="indicator">
 ⭲
 </p>
@@ -542,15 +549,16 @@ class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb19-1"><a
 </section>
 <section id="outcome" class="slide level2">
 <h2>Outcome</h2>
-<p>Now that everything is in place, we try some tests programs, but we
-run into:</p>
+<p>Now that everything is in place, we try some tests programs.</p>
+<div class="element: fragment">
 <div class="sourceCode" id="cb20"><pre
 class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>panic! (the &#39;impossible&#39; happened)</span>
 <span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>  GHC version 9.7.20230607:</span>
 <span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>        missing fail op</span>
 <span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>  Pattern match: U is failable, and fail_expr was left unset</span></code></pre></div>
+</div>
 <div class="element: fragment">
-<p>Work backwards: search for “missing fail op”.</p>
+<p>Debug this by working backwards: search for “missing fail op”.</p>
 <p class="indicator">
 ⭲
 </p>
@@ -605,8 +613,8 @@ class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb23-1"><a
 </section>
 <section id="handling-monadic-failure" class="slide level2">
 <h2>Handling monadic failure</h2>
-<p>We should accept that previous program, but crash at runtime, using a
-failure operator that raises a pattern match failure exception:</p>
+<p>We should accept the previous program, but crash at runtime, using a
+non-monadic failure operator which raises a pattern match error:</p>
 <div class="sourceCode" id="cb24"><pre
 class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>dsHandleMonadicFailure ctx pat match m_fail_op body_ty <span class="ot">=</span></span>
 <span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">case</span> shareFailureHandler match <span class="kw">of</span></span>
@@ -615,13 +623,39 @@ class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb24-1"><a
 <span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a>      <span class="kw">case</span> m_fail_op <span class="kw">of</span></span>
 <span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a>        <span class="dt">Nothing</span> <span class="ot">-&gt;</span></span>
 <span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a>          <span class="kw">do</span> error_expr <span class="ot">&lt;-</span> mkErrorAppDs pAT_ERROR_ID body_ty (ppr pat)</span>
-<span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a><span class="co">-- NB: a custom error would be better than re-using pAT_ERROR_ID</span></span>
-<span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a>             body error_expr</span>
-<span id="cb24-10"><a href="#cb24-10" aria-hidden="true" tabindex="-1"></a>        <span class="dt">Just</span> fail_op <span class="ot">-&gt;</span> <span class="co">-- ...</span></span></code></pre></div>
-<p>Note that we need to know the overall return type of the
-<code>do</code> expression to know the return type of the error; so we
-modify <code>dsHandleMonadicFailure</code> to get that extra type
-(straightforward).</p>
+<span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a>             body error_expr</span>
+<span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a>        <span class="dt">Just</span> fail_op <span class="ot">-&gt;</span> <span class="co">-- ...</span></span></code></pre></div>
+Note that we need to know the overall return type of the <code>do</code>
+expression to know the return type of the error; so we modify
+<code>dsHandleMonadicFailure</code>.
+<p class="indicator">
+⭲
+</p>
+</section>
+<section id="confirmation" class="slide level2">
+<h2>Confirmation</h2>
+<p>Let’s make sure we properly handle the problematic program:</p>
+<div class="sourceCode" id="cb25"><pre
+class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="kw">pattern</span> <span class="dt">Bogus</span><span class="ot"> ::</span> <span class="dt">Int</span></span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a><span class="kw">pattern</span> <span class="dt">Bogus</span> <span class="ot">=</span> <span class="dv">3</span></span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# COMPLETE Bogus #-}</span></span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a><span class="ot">bogus ::</span> <span class="dt">Identity</span> <span class="dt">Bool</span></span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a>bogus <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a>  <span class="dt">Bogus</span> <span class="ot">&lt;-</span> <span class="fu">return</span> <span class="dv">4</span></span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span> <span class="dt">False</span></span></code></pre></div>
+<div class="element: fragment">
+<p>The program compiles successfully, and running it gives:</p>
+<div class="sourceCode" id="cb26"><pre
+class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>*** Exception: user error (Pattern match failure in &#39;do&#39; block)</span></code></pre></div>
+</div>
+<div class="element: fragment">
+We can do better by having a custom error message for this situation, as
+opposed to re-using <code>pAT_ERROR_ID</code>.
+<p class="indicator">
+⭲
+</p>
+</div>
 </section>
 <section id="finishing-up" class="slide level2">
 <h2>Finishing up</h2>
@@ -629,6 +663,9 @@ modify <code>dsHandleMonadicFailure</code> to get that extra type
 <li>Adding tests.</li>
 <li>Writing Notes.</li>
 </ul>
+<p class="indicator">
+⭲
+</p>
 </section>
 <section id="other-tickets" class="slide level2">
 <h2>Other tickets</h2>
@@ -646,7 +683,7 @@ href="https://gitlab.haskell.org/ghc/ghc/-/issues/20771">#20771</a>.</li>
 href="https://gitlab.haskell.org/ghc/ghc/-/issues/14293">#14293</a> <a
 href="https://gitlab.haskell.org/ghc/ghc/-/issues/22406">#22406</a>.</p></li>
 <li><p>Refactoring of rebindable syntax; see <a
-href="https://gitlab.haskell.org/ghc/ghc/-/wikis/Rebindable-syntax">Wiki
+href="https://gitlab.haskell.org/ghc/ghc/-/wikis/Rebindable-syntax">wiki
 page</a>.</p></li>
 <li><p>Propagate more information about patterns in the renamer to help
 record update disambiguation <a
