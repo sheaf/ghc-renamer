@@ -25,8 +25,6 @@
       margin: 0 0.8em 0.2em -1.6em;
       vertical-align: middle;
     }
-    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
-    /* CSS for syntax highlighting */
     pre > code.sourceCode { white-space: pre; position: relative; }
     pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
     pre > code.sourceCode > span:empty { height: 1.2em; }
@@ -90,6 +88,7 @@
     code span.va { color: #19177c; } /* Variable */
     code span.vs { color: #4070a0; } /* VerbatimString */
     code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
   </style>
   <link rel="stylesheet" href="reveal.js/dist/theme/welltyped_theme.css" id="theme">
 </head>
@@ -121,7 +120,7 @@ Custom theme in reveal.js/dist/themes/welltyped_theme.css
 <h2>Plan</h2>
 <ul>
 <li>First part: survey of the renamer and how information about
-identifiers flow through the compiler pipeline.</li>
+identifiers flows through the compiler pipeline.</li>
 <li>Second part: getting our hands dirty, fixing a bug in the renamer
 (interaction of <code>COMPLETE</code> sets of pattern synonyms and
 <code>do</code> notation).</li>
@@ -207,7 +206,9 @@ class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb1-1"><a 
 <span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>  <span class="op">|</span> <span class="dt">FldName</span> {<span class="ot"> fldParent ::</span> <span class="dt">FastString</span> }</span>
 <span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>  <span class="op">|</span> <span class="dt">DataName</span></span>
 <span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>  <span class="op">|</span> <span class="dt">TvName</span></span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>  <span class="op">|</span> <span class="dt">TcClsName</span></span></code></pre></div>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>  <span class="op">|</span> <span class="dt">TcClsName</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="kw">newtype</span> <span class="dt">OccEnv</span> a <span class="ot">=</span> <span class="dt">MkOccEnv</span> (<span class="dt">FastStringEnv</span> (<span class="dt">UniqFM</span> <span class="dt">NameSpace</span> a))</span></code></pre></div>
 <p class="indicator">
 ⭲
 </p>
@@ -336,11 +337,11 @@ to:</p>
 <li><code>HscEnv</code> <i class="fragment" data-fragment-index="3"> –
 per-module options (e.g. flags passed to GHC) and environment</i><br />
 <i class="fragment" data-fragment-index="4">e.g. <code>UnitEnv</code>,
-currently loaded modules</i></li>
+currently loaded modules;</i></li>
 <li><code>TcGblEnv</code> <i class="fragment" data-fragment-index="5"> –
-generated during typechecking and passed on.</i><br />
+generated during typechecking and passed on</i><br />
 <i class="fragment" data-fragment-index="6">e.g. <code>TypeEnv</code>,
-<code>InstEnv</code>, <code>GlobalRdrEnv</code></i></li>
+<code>InstEnv</code>, <code>GlobalRdrEnv</code>;</i></li>
 <li><code>TcLclEnv</code> <i class="fragment" data-fragment-index="7"> –
 changes as we move inside expressions</i><br />
 <i class="fragment" data-fragment-index="8">e.g. <code>SrcSpan</code>,
@@ -367,7 +368,7 @@ class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb9-1"><a 
 <span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>        <span class="kw">do</span>  { (e, fv_e) <span class="ot">&lt;-</span> rnExpr expr</span>
 <span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>            ; (parents, flds, fv_flds) <span class="ot">&lt;-</span> rnHsRecUpdFields flds</span>
 <span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>            ; <span class="op">...</span> }</span>
-<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>      <span class="co">-- ..</span></span></code></pre></div>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>      <span class="co">-- ...</span></span></code></pre></div>
 <p class="indicator">
 ⭲
 </p>
@@ -469,7 +470,7 @@ class="sourceCode ocaml"><code class="sourceCode ocaml"><span id="cb15-1"><a hre
 <span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>$small = [a-z \_]</span>
 <span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>$large = [A-Z]</span>
-<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>symbol = [\!\#\$\%\&amp;\*\+\.\/\&lt;\=\&gt;\?\@\\\^\|\-\~\:]</span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>$symbol = [\!\#\$\%\&amp;\*\+\.\/\&lt;\=\&gt;\?\@\\\^\|\-\~\:]</span>
 <span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>$idchar = [$small $large $digit \&#39;]</span></code></pre></div>
 <p class="indicator">
 ⭲
@@ -687,7 +688,7 @@ class="slide level2">
 <div class="element: fragment">
 <p><code>rnTyClDecls</code> - renames all types/classes defined in the
 module - uses this information to compute dependency groups
-(strongly-connected components). components.</p>
+(strongly-connected components).</p>
 </div>
 <div class="element: fragment">
 <div class="sourceCode" id="cb18"><pre
@@ -794,7 +795,7 @@ href="https://sheaf.github.io/ghc-renamer">sheaf.github.io/ghc-renamer</a>.</p>
         progress: true,
 
         // Display the page number of the current slide
-        slideNumber: 'c/t',
+        slideNumber: false,
 
         // 'all', 'print', or 'speaker'
         showSlideNumber: 'all',

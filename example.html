@@ -25,8 +25,6 @@
       margin: 0 0.8em 0.2em -1.6em;
       vertical-align: middle;
     }
-    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
-    /* CSS for syntax highlighting */
     pre > code.sourceCode { white-space: pre; position: relative; }
     pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
     pre > code.sourceCode > span:empty { height: 1.2em; }
@@ -90,6 +88,7 @@
     code span.va { color: #19177c; } /* Variable */
     code span.vs { color: #4070a0; } /* VerbatimString */
     code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
   </style>
   <link rel="stylesheet" href="reveal.js/dist/theme/welltyped_theme.css" id="theme">
 </head>
@@ -318,10 +317,38 @@ pragmas to <code>isIrrefutableHsPat</code>.
 </p>
 </div>
 </section>
+<section id="complete-pragmas" class="slide level2">
+<h2>COMPLETE pragmas</h2>
+<p>We want to pass <code>COMPLETE</code> sets to
+<code>isIrrefutableHsPat</code>.<br />
+So let’s start off by figuring out how these are represented in the
+compiler.</p>
+<div class="element: fragment">
+<div class="sourceCode" id="cb12"><pre
+class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- In Language.Haskell.Syntax.Binds</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">Sig</span> pass</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>  <span class="ot">=</span> <span class="co">-- ...</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>  <span class="op">|</span> <span class="dt">CompleteMatchSig</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>    (<span class="dt">XCompleteMatchSig</span> pass) <span class="co">-- (NB: only exact-print info here)</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>    (<span class="dt">XRec</span> pass [<span class="dt">LIdP</span> pass])</span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>    (<span class="dt">Maybe</span> (<span class="dt">LIdP</span> pass))</span></code></pre></div>
+<div class="sourceCode" id="cb13"><pre
+class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- In GHC.Types.CompleteMatch</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">CompleteMatch</span> <span class="ot">=</span> <span class="dt">CompleteMatch</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  {<span class="ot"> cmConLikes ::</span> <span class="dt">UniqDSet</span> <span class="dt">ConLike</span>,<span class="ot"> cmResultTyCon ::</span> <span class="dt">Maybe</span> <span class="dt">TyCon</span> }</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">TcGblEnv</span></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>  <span class="ot">=</span> <span class="dt">TcGblEnv</span></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>  { <span class="co">-- ...</span></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>  ,<span class="ot"> tcg_complete_matches ::</span> <span class="op">!</span><span class="dt">CompleteMatches</span> }</span></code></pre></div>
+</div>
+</section>
 <section id="information-flow" class="slide level2">
 <h2>Information flow</h2>
-<p>Let’s audit the calls to <code>isIrrefutableHsPat</code>; the HLS
-call hierarchy functionality is very useful for that.</p>
+<p>Now let’s look into passing <code>COMPLETE</code> sets to
+<code>isIrrefutableHsPat</code>.<br />
+Let’s audit its calls; the HLS call hierarchy functionality is very
+useful for that.</p>
 <ol type="1" class="fragment">
 <li>
 In the renamer:
@@ -356,30 +383,6 @@ information in the renamer, and before we have actually typechecked
 <p class="indicator">
 ⭲
 </p>
-</div>
-</section>
-<section id="complete-pragmas" class="slide level2">
-<h2>COMPLETE pragmas</h2>
-<p>How are <code>COMPLETE</code> pragmas are represented in the
-compiler?</p>
-<div class="element: fragment">
-<div class="sourceCode" id="cb12"><pre
-class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- In Language.Haskell.Syntax.Binds</span></span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">Sig</span> pass</span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>  <span class="ot">=</span> <span class="co">-- ...</span></span>
-<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>  <span class="op">|</span> <span class="dt">CompleteMatchSig</span></span>
-<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>    (<span class="dt">XCompleteMatchSig</span> pass) <span class="co">-- (NB: only exact-print info here)</span></span>
-<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>    (<span class="dt">XRec</span> pass [<span class="dt">LIdP</span> pass])</span>
-<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>    (<span class="dt">Maybe</span> (<span class="dt">LIdP</span> pass))</span></code></pre></div>
-<div class="sourceCode" id="cb13"><pre
-class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- In GHC.Types.CompleteMatch</span></span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">CompleteMatch</span> <span class="ot">=</span> <span class="dt">CompleteMatch</span></span>
-<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  {<span class="ot"> cmConLikes ::</span> <span class="dt">UniqDSet</span> <span class="dt">ConLike</span>,<span class="ot"> cmResultTyCon ::</span> <span class="dt">Maybe</span> <span class="dt">TyCon</span> }</span>
-<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">TcGblEnv</span></span>
-<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>  <span class="ot">=</span> <span class="dt">TcGblEnv</span></span>
-<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>  { <span class="co">-- ...</span></span>
-<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>  ,<span class="ot"> tcg_complete_matches ::</span> <span class="op">!</span><span class="dt">CompleteMatches</span> }</span></code></pre></div>
 </div>
 </section>
 <section id="threading-it-through" class="slide level2">
@@ -660,8 +663,8 @@ opposed to re-using <code>pAT_ERROR_ID</code>.
 <section id="finishing-up" class="slide level2">
 <h2>Finishing up</h2>
 <ul>
-<li>Adding tests.</li>
-<li>Writing Notes.</li>
+<li>Tests.</li>
+<li>Notes.</li>
 </ul>
 <p class="indicator">
 ⭲
@@ -724,7 +727,7 @@ href="https://gitlab.haskell.org/ghc/ghc/-/issues/22746">#22746</a>.</p></li>
         progress: true,
 
         // Display the page number of the current slide
-        slideNumber: 'c/t',
+        slideNumber: false,
 
         // 'all', 'print', or 'speaker'
         showSlideNumber: 'all',

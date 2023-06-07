@@ -20,7 +20,7 @@ date: June 7th, 2023
 ## Plan
 
 - First part: survey of the renamer and how information about
-  identifiers flow through the compiler pipeline.
+  identifiers flows through the compiler pipeline.
 - Second part: getting our hands dirty, fixing a bug in the renamer
   (interaction of `COMPLETE` sets of pattern synonyms and `do` notation).
 
@@ -96,6 +96,8 @@ data NameSpace
   | DataName
   | TvName
   | TcClsName
+
+newtype OccEnv a = MkOccEnv (FastStringEnv (UniqFM NameSpace a))
 ```
 
 <p class="indicator">⭲</p>
@@ -229,10 +231,10 @@ This is `ReaderT` over `IO`, with access to:
 
   - `HscEnv`
       <i class="fragment" data-fragment-index="3"> – per-module options (e.g. flags passed to GHC) and environment</i>  
-      <i class="fragment" data-fragment-index="4">e.g. `UnitEnv`, currently loaded modules</i>
+      <i class="fragment" data-fragment-index="4">e.g. `UnitEnv`, currently loaded modules;</i>
   - `TcGblEnv`
-      <i class="fragment" data-fragment-index="5"> – generated during typechecking and passed on.</i>  
-    <i class="fragment" data-fragment-index="6">e.g. `TypeEnv`, `InstEnv`, `GlobalRdrEnv`</i>
+      <i class="fragment" data-fragment-index="5"> – generated during typechecking and passed on</i>  
+    <i class="fragment" data-fragment-index="6">e.g. `TypeEnv`, `InstEnv`, `GlobalRdrEnv`;</i>
   - `TcLclEnv`
     <i class="fragment" data-fragment-index="7"> – changes as we move inside expressions</i>  
     <i class="fragment" data-fragment-index="8">e.g. `SrcSpan`, `TcLevel`, `LocalRdrEnv`.<p class="indicator">⭲</p></i>
@@ -362,7 +364,7 @@ We start off by lexing. See `GHC.Parser.Lexer.x`:
 
 $small = [a-z \_]
 $large = [A-Z]
-symbol = [\!\#\$\%\&\*\+\.\/\<\=\>\?\@\\\^\|\-\~\:]
+$symbol = [\!\#\$\%\&\*\+\.\/\<\=\>\?\@\\\^\|\-\~\:]
 $idchar = [$small $large $digit \']
 ```
 <p class="indicator">⭲</p>
@@ -587,7 +589,6 @@ Control flow:
 `rnTyClDecls`
   - renames all types/classes defined in the module
   - uses this information to compute dependency groups (strongly-connected components).
-components.
 :::
 
 

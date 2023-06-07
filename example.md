@@ -215,10 +215,39 @@ This leaves the task of passing the collection of `COMPLETE` pragmas to
 `isIrrefutableHsPat`. <p class="indicator">⭲</p>
 :::
 
+## COMPLETE pragmas
+
+We want to pass `COMPLETE` sets to `isIrrefutableHsPat`.  
+So let's start off by figuring out how these are represented in the compiler.
+
+:::{.element: class="fragment"}
+```haskell
+-- In Language.Haskell.Syntax.Binds
+data Sig pass
+  = -- ...
+  | CompleteMatchSig
+    (XCompleteMatchSig pass) -- (NB: only exact-print info here)
+    (XRec pass [LIdP pass])
+    (Maybe (LIdP pass))
+```
+
+```haskell
+-- In GHC.Types.CompleteMatch
+data CompleteMatch = CompleteMatch
+  { cmConLikes :: UniqDSet ConLike, cmResultTyCon :: Maybe TyCon }
+
+data TcGblEnv
+  = TcGblEnv
+  { -- ...
+  , tcg_complete_matches :: !CompleteMatches }
+```
+:::
+
 ## Information flow
 
-Let's audit the calls to `isIrrefutableHsPat`; the HLS call hierarchy
-functionality is very useful for that.
+Now let's look into passing `COMPLETE` sets to `isIrrefutableHsPat`.  
+Let's audit its calls; the HLS call hierarchy functionality is very
+useful for that.
 
 <ol type="1" class="fragment">
 
@@ -253,34 +282,6 @@ This means that we are going to need `COMPLETE` pattern information in the
 renamer, and before we have actually typechecked `PatSyn`s in the typechecker.
 <p class="indicator">⭲</p>
 :::
-
-## COMPLETE pragmas
-
-How are `COMPLETE` pragmas are represented in the compiler?
-
-:::{.element: class="fragment"}
-```haskell
--- In Language.Haskell.Syntax.Binds
-data Sig pass
-  = -- ...
-  | CompleteMatchSig
-    (XCompleteMatchSig pass) -- (NB: only exact-print info here)
-    (XRec pass [LIdP pass])
-    (Maybe (LIdP pass))
-```
-
-```haskell
--- In GHC.Types.CompleteMatch
-data CompleteMatch = CompleteMatch
-  { cmConLikes :: UniqDSet ConLike, cmResultTyCon :: Maybe TyCon }
-
-data TcGblEnv
-  = TcGblEnv
-  { -- ...
-  , tcg_complete_matches :: !CompleteMatches }
-```
-:::
-
 
 ## Threading it through
 
@@ -555,8 +556,8 @@ opposed to re-using `pAT_ERROR_ID`. <p class="indicator">⭲</p>
 
 ## Finishing up
 
-- Adding tests.
-- Writing Notes.
+- Tests.
+- Notes.
 
 <p class="indicator">⭲</p>
 
